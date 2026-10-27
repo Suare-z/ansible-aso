@@ -2,6 +2,8 @@
 
 Integrantes:
 - Catherine Ainhoa Suarez Ala
+- Nombre Compañero 2
+- Nombre Compañero 3
 
 Contenido:
 - playbook_ftp.yml: instala y configura vsftpd
