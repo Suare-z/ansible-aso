@@ -1,0 +1,8 @@
+---
+- name: Desplegar LAMP y Samba
+  hosts: servidor
+  become: yes
+  roles:
+    - mariadb
+    - lamp
+    - samba

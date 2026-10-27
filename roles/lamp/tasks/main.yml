@@ -1,0 +1,42 @@
+---
+- name: Instalar Apache, PHP y phpMyAdmin
+  ansible.builtin.zypper:
+    name:
+      - apache2
+      - apache2-mod_php8
+      - php8
+      - php8-mysql
+      - php8-mbstring
+      - php8-zip
+      - php8-gd
+      - phpMyAdmin
+      - phpMyAdmin-apache
+    state: present
+
+- name: Cargar el módulo PHP8 en Apache
+  ansible.builtin.copy:
+    content: |
+      LoadModule php_module /usr/lib64/apache2/mod_php8.so
+      AddType application/x-httpd-php .php
+    dest: /etc/apache2/conf.d/php8-load.conf
+    mode: '0644'
+  notify: Reiniciar apache
+
+- name: Página de prueba PHP
+  ansible.builtin.copy:
+    content: "<?php phpinfo(); ?>\n"
+    dest: /srv/www/htdocs/info.php
+    mode: '0644'
+
+- name: Habilitar e iniciar Apache
+  ansible.builtin.systemd:
+    name: apache2
+    enabled: yes
+    state: started
+
+- name: Abrir HTTP en el firewall
+  ansible.posix.firewalld:
+    service: http
+    permanent: yes
+    immediate: yes
+    state: enabled

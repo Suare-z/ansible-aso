@@ -1,0 +1,8 @@
+mariadb_root_password: "{{ vault_mariadb_root_password }}"
+samba_user_password: "{{ vault_samba_user_password }}"
+system_user_password: "{{ vault_system_user_password }}"
+samba_user: sambauser
+samba_share_name: datos
+samba_share_path: /srv/samba/datos
+samba_create_mask: "0664"
+samba_directory_mask: "0775"
