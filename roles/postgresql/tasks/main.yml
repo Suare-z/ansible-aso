@@ -1,0 +1,79 @@
+---
+- name: Instalar PostgreSQL y librería PHP
+  ansible.builtin.zypper:
+    name:
+      - postgresql17-server
+      - postgresql17-contrib
+      - php8-pgsql
+      - php8-pdo
+    state: present
+  notify: Reiniciar apache
+
+- name: Inicializar el clúster y habilitar servicio
+  ansible.builtin.systemd:
+    name: postgresql
+    enabled: yes
+    state: started
+
+- name: Esperar a que PostgreSQL acepte conexiones
+  ansible.builtin.command: su - postgres -c "pg_isready"
+  register: pg_ready
+  until: pg_ready.rc == 0
+  retries: 10
+  delay: 3
+  changed_when: false
+
+- name: Cifrado de contraseñas scram-sha-256
+  ansible.builtin.lineinfile:
+    path: "{{ pg_data_dir }}/postgresql.conf"
+    regexp: '^#?password_encryption'
+    line: "password_encryption = scram-sha-256"
+  notify: Reiniciar postgresql
+
+- name: Escuchar en todas las interfaces
+  ansible.builtin.lineinfile:
+    path: "{{ pg_data_dir }}/postgresql.conf"
+    regexp: '^#?listen_addresses'
+    line: "listen_addresses = '*'"
+  notify: Reiniciar postgresql
+
+- name: Permitir conexión remota con scram-sha-256
+  ansible.builtin.lineinfile:
+    path: "{{ pg_data_dir }}/pg_hba.conf"
+    line: "host    all    all    {{ pg_allowed_network }}    scram-sha-256"
+    insertafter: EOF
+  notify: Reiniciar postgresql
+
+- name: Aplicar cambios antes de crear usuarios
+  ansible.builtin.meta: flush_handlers
+
+- name: Fijar contraseña de postgres
+  ansible.builtin.command:
+    argv:
+      - su
+      - "-"
+      - postgres
+      - -c
+      - "psql -c \"ALTER USER postgres PASSWORD '{{ postgres_password }}';\""
+  changed_when: false
+  no_log: true
+
+- name: Crear usuario de aplicación
+  ansible.builtin.shell: |
+    su - postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='{{ pg_app_user }}'\"" | grep -q 1 ||
+    su - postgres -c "psql -c \"CREATE USER {{ pg_app_user }} WITH PASSWORD '{{ pg_app_password }}';\""
+  changed_when: false
+  no_log: true
+
+- name: Crear base de datos
+  ansible.builtin.shell: |
+    su - postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='{{ pg_app_db }}'\"" | grep -q 1 ||
+    su - postgres -c "createdb -O {{ pg_app_user }} {{ pg_app_db }}"
+  changed_when: false
+
+- name: Abrir PostgreSQL en el firewall
+  ansible.posix.firewalld:
+    service: postgresql
+    permanent: yes
+    immediate: yes
+    state: enabled

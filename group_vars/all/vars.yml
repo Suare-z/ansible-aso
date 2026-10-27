@@ -6,3 +6,9 @@ samba_share_name: datos
 samba_share_path: /srv/samba/datos
 samba_create_mask: "0664"
 samba_directory_mask: "0775"
+postgres_password: "{{ vault_postgres_password }}"
+pg_app_password: "{{ vault_pg_app_password }}"
+pg_app_user: appuser
+pg_app_db: appdb_pg
+pg_data_dir: /var/lib/pgsql/data
+pg_allowed_network: 192.168.1.0/24
